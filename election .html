@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Department Election Scanner</title>
+<style>
+  body { font-family: Arial; text-align: center; margin: 20px; }
+  #video { width: 300px; height: 200px; border: 1px solid black; }
+  #message { margin-top: 20px; font-size: 20px; font-weight: bold; }
+  input, button { margin: 10px; padding: 8px; font-size: 16px; }
+</style>
+</head>
+<body>
+<h1>Department Election Scanner</h1>
+
+<!-- Upload eligible enrollment numbers -->
+<input type="file" id="fileInput" accept=".txt,.csv">
+<button onclick="loadEligible()">Load Eligible List</button>
+<p id="fileStatus">No file loaded</p>
+
+<!-- Barcode scanning -->
+<video id="video" autoplay></video>
+<p id="message">Scan a student ID barcode</p>
+
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script>
+let eligibleList = [];
+let scannedList = [];
+
+// Load eligible enrollment numbers from a TXT/CSV file
+function loadEligible() {
+  const file = document.getElementById('fileInput').files[0];
+  if (!file) { alert("Please select a file"); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    eligibleList = e.target.result.split(/\r?\n/).map(x => x.trim()).filter(x => x);
+    document.getElementById('fileStatus').innerText = "Eligible list loaded: " + eligibleList.length + " students";
+    localStorage.setItem('eligibleList', JSON.stringify(eligibleList));
+  }
+  reader.readAsText(file);
+}
+
+// Load eligible list from localStorage on page load
+window.onload = function() {
+  const saved = localStorage.getItem('eligibleList');
+  if (saved) eligibleList = JSON.parse(saved);
+}
+
+// Initialize ZXing barcode scanner
+const codeReader = new ZXing.BrowserBarcodeReader();
+codeReader.getVideoInputDevices().then(videoInputDevices => {
+  const firstDeviceId = videoInputDevices[0].deviceId;
+  codeReader.decodeFromVideoDevice(firstDeviceId, 'video', (result, err) => {
+    if (result) handleScan(result.text);
+  });
+}).catch(err => console.error(err));
+
+function handleScan(code) {
+  const messageEl = document.getElementById('message');
+  if (!eligibleList.includes(code)) {
+    messageEl.innerText = "❌ Not Eligible!";
+    messageEl.style.color = "red";
+    return;
+  }
+  if (scannedList.includes(code)) {
+    messageEl.innerText = "⚠️ Already Scanned!";
+    messageEl.style.color = "orange";
+    return;
+  }
+  scannedList.push(code);
+  messageEl.innerText = "✅ Entry Allowed!";
+  messageEl.style.color = "green";
+}
+</script>
+</body>
+</html>
